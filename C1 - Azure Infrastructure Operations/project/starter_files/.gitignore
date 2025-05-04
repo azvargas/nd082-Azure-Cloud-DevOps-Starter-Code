@@ -1,2 +1,8 @@
 .DS_Store
 .DS_Store?
+.terraform
+various.txt
+*.hcl
+terraform.tfstate
+terraform.tfstate.backup
+*.ps1
