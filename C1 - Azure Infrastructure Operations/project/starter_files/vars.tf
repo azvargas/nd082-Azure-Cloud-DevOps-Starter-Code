@@ -18,11 +18,6 @@ variable "admin_password" {
   description = "The password for the VM being created."
 }
 
-variable "resource_group" {
-  description = "The resource group in which the resources will be"
-  default = "Azuredevops"
-}
-
 variable "count_vms" {
   description = "Number of virtual machines to deploy"
   default = 2

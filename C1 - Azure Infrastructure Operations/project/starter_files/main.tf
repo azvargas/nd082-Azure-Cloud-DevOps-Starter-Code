@@ -7,9 +7,16 @@ provider "azurerm" {
 }
 
 # Create resource group
-# As I'm not allowed to create a new resource group, I'll use a variable instead of.
-#resource "azurerm_resource_group" "main" {
-#  name     = "DevOpsRG"
+# If this script will run using a Udacity subscription, the "data" object defined below should be used
+# instead of the "resource" object, as Udacity does not allow the creation os new resource groups.
+
+resource "azurerm_resource_group" "main" {
+  name     = "Azuredevops"
+  location = var.location
+}
+
+#data "azurerm_resource_group" "main" {
+#  name     = "Azuredevops"
 #  location = var.location
 #}
 
@@ -18,7 +25,7 @@ resource "azurerm_virtual_network" "main" {
   name                = "${var.prefix}-network"
   address_space       = ["10.0.0.0/16"]
   location            = var.location
-  resource_group_name = var.resource_group
+  resource_group_name = azurerm_resource_group.main.id
   tags                = { 
     project = var.item_tag
   }
@@ -27,7 +34,7 @@ resource "azurerm_virtual_network" "main" {
 # Create a subnet
 resource "azurerm_subnet" "internal" {
   name                 = "internal"
-  resource_group_name  = var.resource_group
+  resource_group_name  = azurerm_resource_group.main.id
   virtual_network_name = azurerm_virtual_network.main.name
   address_prefixes     = ["10.0.2.0/24"]
 }
@@ -35,11 +42,22 @@ resource "azurerm_subnet" "internal" {
 # Create a network security group
 resource "azurerm_network_security_group" "main" {
   name                = "${var.prefix}-nsg"
-  resource_group_name = var.resource_group
+  resource_group_name = azurerm_resource_group.main.id
   location            = var.location
   security_rule {
-    name = "LocalTraffic"
+    name = "BlockInternetTraffic"
     priority = 100
+    direction = "Inbound"
+    access = "Deny"
+    protocol = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "Internet"
+    destination_address_prefix = "*"    
+  }
+  security_rule {
+    name = "AllowLocalTrafficInbound"
+    priority = 101
     direction = "Inbound"
     access = "Allow"
     protocol = "Tcp"
@@ -49,15 +67,26 @@ resource "azurerm_network_security_group" "main" {
     destination_address_prefix = "*"    
   }
   security_rule {
-    name = "InternetTraffic"
-    priority = 101
-    direction = "Inbound"
-    access = "Deny"
+    name = "AllowLocalTrafficOutbound"
+    priority = 102
+    direction = "Outbound"
+    access = "Allow"
     protocol = "Tcp"
     source_port_range          = "*"
     destination_port_range     = "*"
-    source_address_prefix      = "Internet"
+    source_address_prefix      = "VirtualNetwork"
     destination_address_prefix = "*"    
+  }
+  security_rule {
+    name = "HttpLoadBalancer"
+    priority = 103
+    direction = "Inbound"
+    access = "Allow"
+    protocol = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "80"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.0.2.0/24"    
   }
   tags                = { 
     project = var.item_tag
@@ -68,7 +97,7 @@ resource "azurerm_network_security_group" "main" {
 resource "azurerm_network_interface" "main" {
   count               = var.count_vms
   name                = "${var.prefix}-nic${count.index}"
-  resource_group_name = var.resource_group
+  resource_group_name = azurerm_resource_group.main.id
   location            = var.location
   
   ip_configuration {
@@ -91,7 +120,7 @@ resource "azurerm_network_interface_security_group_association" "main" {
 # Create a public IP
 resource "azurerm_public_ip" "main" {
 	name				        = "${var.prefix}-publicip"
-	resource_group_name = var.resource_group
+	resource_group_name = azurerm_resource_group.main.id
 	location			      = var.location
 	allocation_method   = "Static"
   tags                = { 
@@ -102,7 +131,7 @@ resource "azurerm_public_ip" "main" {
 # Create a load balancer
 resource "azurerm_lb" "main" {
   name                = "${var.prefix}-lb"
-  resource_group_name = var.resource_group
+  resource_group_name = azurerm_resource_group.main.id
   location            = var.location
   frontend_ip_configuration {
     name                 = "LBPublicIPAddress"
@@ -130,7 +159,7 @@ resource "azurerm_network_interface_backend_address_pool_association" "main" {
 # Create an availavility set
 resource "azurerm_availability_set" "main" {
   name = "${var.prefix}-avset"
-  resource_group_name = var.resource_group
+  resource_group_name = azurerm_resource_group.main.id
   location            = var.location
   tags                = { 
     project = var.item_tag
@@ -145,7 +174,7 @@ data "azurerm_image" "main" {
 resource "azurerm_linux_virtual_machine" "main" {
   count                           = var.count_vms
   name                            = "${var.prefix}-vm${count.index}"
-  resource_group_name             = var.resource_group
+  resource_group_name             = azurerm_resource_group.main.id
   location                        = var.location
   size                            = "Standard_B1s"
   admin_username                  = var.admin_username
