@@ -77,17 +77,6 @@ resource "azurerm_network_security_group" "main" {
     source_address_prefix      = "VirtualNetwork"
     destination_address_prefix = "*"    
   }
-  security_rule {
-    name = "HttpLoadBalancer"
-    priority = 103
-    direction = "Inbound"
-    access = "Allow"
-    protocol = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "80"
-    source_address_prefix      = "*"
-    destination_address_prefix = "10.0.2.0/24"    
-  }
   tags                = { 
     project = var.item_tag
   }
